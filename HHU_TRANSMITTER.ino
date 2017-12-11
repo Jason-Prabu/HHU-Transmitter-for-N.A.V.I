@@ -7,10 +7,12 @@
 
 //PIEZO-BUZZER TONE FREQUENCIES
 
-#define clear_tone_freq 2000
-#define send_tone_freq  1500
-#define num_tone_freq   600
-#define alpha_tone_freq 200
+#define SOS_TONE_FREQ   3000
+#define CLEAR_TONE_FREQ 2000
+#define SEND_TONE_FREQ  1500
+#define PAGE_TONE_FREQ  1200
+#define NUM_TONE_FREQ   600
+#define ALPHA_TONE_FREQ 200
 
 
 RF24 radio(7, 8);                                         // CE AND CSN PINS CONNECTED TO D7 AND D8
@@ -19,23 +21,39 @@ const uint64_t pipes[1] = {0xF0F0F0F0E1LL};               // TRANSMITTER ADDRESS
 const int buzzer = 9;               // +VE TERMINAL OF BUZZER CONNECTED TO D9 THROUGHN RESISTOR
 
 char bus_arr[6];
-int k = 0, send_flag = 0;
+int k = 0, send_flag = 0, page_flag = 1;
 
 //KEYPAD ROWS FIRST THEN COLUMN - LEFT TO RIGHT
 
 const byte ROWS = 4;          // 4 ROWS
-const byte COLS = 4;          // 3 COLUMNS
-char keys[ROWS][COLS] = {
-  {'1', '2', '3', 'A'},
-  {'4', '5', '6', 'B'},
-  {'7', '8', '9', 'C'},
-  {'*', '0', '#', 'D'}
-};                                //KEY MAP
+const byte COLS = 4;          // 4 COLUMNS
+
+//KEY MAP PAGE 1
+char keyspage1[ROWS][COLS] = {
+  {'1', '2', '3', '4'},
+  {'5', '6', '7', '8'},
+  {'9', '0', 'A', 'B'},
+  {'*', '#', '.', '/'}
+};              
+//KEY MAP PAGE 2                  
+char keyspage2[ROWS][COLS] = {
+  {'C', 'D', 'E', 'F'},
+  {'G', 'H', 'I', 'J'},
+  {'K', 'L', 'M', 'N'},
+  {'*', '#', '.', '/'}
+};          
+//KEY MAP PAGE 3                      
+char keyspage3[ROWS][COLS] = {
+  {'O', 'P', 'Q', 'R'},
+  {'S', 'T', 'U', 'V'},
+  {'W', 'X', 'Y', 'Z'},
+  {'*', '3', '.', '/'}
+};                                
 
 byte rowPins[ROWS] = {A0, A1, A2, A3}; //connect to the row pinouts of the kpd
 byte colPins[COLS] = {2, 3, 4, 5}; //connect to the column pinouts of the kpd
 
-Keypad kpd = Keypad( makeKeymap(keys), rowPins, colPins, ROWS, COLS );
+Keypad kpd = Keypad( makeKeymap(keyspage1), rowPins, colPins, ROWS, COLS );
 
 
 void setup() {
@@ -66,26 +84,32 @@ void loop() {
 
           case PRESSED:
           // SOUND BUZZER ....TURN OFF WHEN KEY RELEASED
-            if (kpd.key[i].kchar == '*')
-              tone(buzzer, clear_tone_freq);                 
+            if (kpd.key[i].kchar == '/')
+              tone(buzzer, SOS_TONE_FREQ);     
+            else if (kpd.key[i].kchar == '*')
+              tone(buzzer, CLEAR_TONE_FREQ);                 
             else if (kpd.key[i].kchar == '#')
-              tone(buzzer, send_tone_freq);                 
+              tone(buzzer, SEND_TONE_FREQ);  
+            else if (kpd.key[i].kchar == '.')
+              tone(buzzer, PAGE_TONE_FREQ);                   
             else if (kpd.key[i].kchar >= '0' && kpd.key[i].kchar <= '9')
-              tone(buzzer, num_tone_freq);                 
-            else if (kpd.key[i].kchar >= 'A' && kpd.key[i].kchar <= 'D')
-              tone(buzzer, alpha_tone_freq);                 
+              tone(buzzer, NUM_TONE_FREQ);                 
+            else if (kpd.key[i].kchar >= 'A' && kpd.key[i].kchar <= 'Z')
+              tone(buzzer, ALPHA_TONE_FREQ);                 
             break;
 
           case RELEASED:
             noTone(buzzer);                    // SOUND OFF BUZZER
-            if (kpd.key[i].kchar == '*')       // CLEAR ARRAY
+            // CLEAR ARRAY AND SET TO PAGE 1
+            if (kpd.key[i].kchar == '*')       
             {
               for (int i = 0; i < 6; i++)
                 bus_arr[i] = '\0';
               k = 0;
               send_flag = 0;
             }
-            else if (kpd.key[i].kchar == '#')  // SEND ARRAY
+            // SEND ARRAY
+            else if (kpd.key[i].kchar == '#')  
             {
               if (send_flag == 1)
               {
@@ -98,7 +122,27 @@ void loop() {
                 delay(500);                                 // WAIT 0.5 SECONDS
               }
             }
-            else              //  ADD TO ARRAY
+            // SOS
+            else if (kpd.key[i].kchar == '/')
+            {
+              
+            }
+            // CHANGE KEYS PAGE
+            else if (kpd.key[i].kchar == '.')  
+            {
+              page_flag++;
+              if (page_flag == 1 || page_flag > 3)
+              {
+                page_flag = 1;
+                kpd = Keypad( makeKeymap(keyspage1), rowPins, colPins, ROWS, COLS );
+              }
+              else if (page_flag == 2)
+                kpd = Keypad( makeKeymap(keyspage2), rowPins, colPins, ROWS, COLS );
+              else if (page_flag == 3)
+                kpd = Keypad( makeKeymap(keyspage3), rowPins, colPins, ROWS, COLS );
+            }
+            //  ADD TO ARRAY
+            else              
             {
               if (k < 5)
               {
@@ -112,7 +156,3 @@ void loop() {
     }
   }
 }
-
-
-
-
